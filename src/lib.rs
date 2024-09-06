@@ -6,7 +6,7 @@ pub use recrypt::{
 pub use bincode;
 pub use recrypt::api::DefaultRng;
 use solana_sdk::signature::{Keypair, Signer};
-
+pub mod util;
 
 // Define chunk_size as a constant
 const CHUNK_SIZE: usize = 384; // You can set this to any appropriate value
@@ -186,4 +186,27 @@ pub fn generate_solana_keypair() -> (String, Vec<u8>) {
     let secret_key = keypair.to_bytes().to_vec();
 
     (public_key, secret_key)
+}
+
+pub fn generate_encrypted_val(
+    recrypt: &Recrypt<Sha256, Ed25519, RandomBytes<DefaultRng>>,
+    input: &str,
+    initial_pub_key: &PublicKey,
+    signing_keypair: &SigningKeypair, // Update to the correct type
+) -> Result<EncryptedValue, Box<dyn std::error::Error>> {
+    info!("Input symmetric key: {}", input);
+
+    // Serialize the symmetric key
+    let serialized_symm_keys = get_serialized_symmetric_key(input)?;
+    debug!("Serialized symmetric key obtained.");
+
+    // Split and pad the serialized data
+    let symm_key_chunks = split_and_pad_serialized_data(&serialized_symm_keys);
+    debug!("Symmetric key chunks split and padded.");
+
+    // Encrypt the symmetric key chunks
+    let encrypted_value = encrypt_all_chunks_as_one(recrypt, &symm_key_chunks, initial_pub_key, signing_keypair)?;
+    info!("Symmetric key chunks encrypted.");
+
+    Ok(encrypted_value)
 }

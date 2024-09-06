@@ -1,6 +1,11 @@
 use std::time::Instant;
 use gw_proxy_recrypt::*;
 use log::{debug, error, info, warn};
+use util::{serialize_public_key_to_json, serialize_private_key_to_json, write_json_to_file, read_json_from_file, save_signing_keypair_to_file};
+mod init_client;
+mod target_client;
+
+
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
@@ -13,24 +18,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let signing_keypair = generate_signing_key(&mut recrypt);
     debug!("Signing keypair generated.");
 
-    let (initial_priv_key, initial_pub_key) = generate_asymmetric_key(&mut recrypt)?;
-    debug!("Initial asymmetric key pair generated.");
+    save_signing_keypair_to_file(&signing_keypair, "/Users/manjeetsingh/test-certs/signing_keypair");
+
+    //let (initial_priv_key, initial_pub_key) = init_member_key_gen(&mut recrypt)?;
+    let (initial_priv_key, initial_pub_key) = init_client::init_member_key_gen(&mut recrypt)?;
+
+    let (target_priv_key, target_pub_key) = target_client::init_target_key_gen(&mut recrypt)?;
 
     let input = "This is symmtery key";
-    info!("Input symmetric key: {}", input);
 
-    let serialized_symm_keys = get_serialized_symmetric_key(input)?;
-    debug!("Serialized symmetric key obtained.");
-
-    let symm_key_chunks = split_and_pad_serialized_data(&serialized_symm_keys);
-    debug!("Symmetric key chunks split and padded.");
-
-    let encrypted_value = encrypt_all_chunks_as_one(&recrypt, &symm_key_chunks, &initial_pub_key, &signing_keypair)?;
-    info!("Symmetric key chunks encrypted.");
-
-    let (target_priv_key, target_pub_key) = generate_asymmetric_key(&mut recrypt)?;
-    debug!("Target asymmetric key pair generated.");
-
+    let encrypted_value = generate_encrypted_val(&recrypt,input,&initial_pub_key,&signing_keypair)?;
+  
     // Generate a transform key
     let initial_to_target_transform_key = generate_transform_key(
         &recrypt,
@@ -55,8 +53,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     verify_decryption(&decrypted_val, input)?;
     info!("Decryption verified successfully.");
 
-  //  println!("All chunks successfully encrypted and decrypted in {:?}", start.elapsed());
     info!("Program completed successfully in {:?}", start.elapsed());
 
     Ok(())
 }
+
+    
+    
+
+
+    
