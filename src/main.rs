@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let signing_pair_dir = "/Users/manjeetsingh/test-certs/initiator/signing_keypair";
     let asymm_key_gen_dir = "/Users/manjeetsingh/test-certs/initiator";
     let target_pub_key_loc = "/Users/manjeetsingh/test-certs/target";
-
+    let target_certs_dir = "/Users/manjeetsingh/test-certs/target";
 
     // Initiator Operations
     let (encrypted_value) = encrypt_data_with_pre(
