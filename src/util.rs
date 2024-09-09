@@ -1,12 +1,16 @@
 use serde_json;
-use recrypt::api::{PrivateKey, PublicKey,SigningKeypair};
-use log::{info, debug, warn, error};
+use recrypt::api::{PrivateKey, PublicKey};
+use log::{info, debug};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
 use std::io::Read;
 use serde_json::Value;
 use std::io;
+
+
+
+
 
 
 /// Serializes the x and y values of a public key to JSON strings.
@@ -125,11 +129,4 @@ pub fn read_json_from_file(file_path: &str) -> io::Result<()> {
     Ok(())
 }
 
-pub fn save_signing_keypair_to_file(signing_keypair: &SigningKeypair, file_path: &str) -> io::Result<()> {
-    let bytes = signing_keypair.bytes();
 
-    let mut file = File::create(file_path)?;
-    file.write_all(bytes)?;
-
-    Ok(())
-}

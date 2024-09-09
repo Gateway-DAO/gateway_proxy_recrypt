@@ -1,4 +1,4 @@
-use log::{info, debug, warn, error};
+use log::{info, debug};
 pub use recrypt::{
     api::{Plaintext, PrivateKey, PublicKey, SigningKeypair, EncryptedValue, TransformKey},
     prelude::*,
@@ -7,6 +7,8 @@ pub use bincode;
 pub use recrypt::api::DefaultRng;
 use solana_sdk::signature::{Keypair, Signer};
 pub mod util;
+pub mod keygen_helper;
+use crate::keygen_helper::{save_signing_keypair_to_file,get_target_party_public_key};
 
 // Define chunk_size as a constant
 const CHUNK_SIZE: usize = 384; // You can set this to any appropriate value
@@ -209,4 +211,73 @@ pub fn generate_encrypted_val(
     info!("Symmetric key chunks encrypted.");
 
     Ok(encrypted_value)
+}
+
+pub fn encrypt_data_with_pre(
+    recrypt: &mut Recrypt<Sha256, Ed25519, RandomBytes<DefaultRng>>,
+    input: &str,
+    signing_pair_dir: &str,
+    asymm_key_gen_dir: &str,
+    target_certs_dir:&str,
+) -> Result<(EncryptedValue), Box<dyn std::error::Error>> {
+    // Generate signing keypair
+    let signing_keypair = generate_signing_key(recrypt);
+    debug!("Signing keypair generated.");
+
+    save_signing_keypair_to_file(&signing_keypair, signing_pair_dir);
+
+    let (initial_priv_key, initial_pub_key) =
+        keygen_helper::asymm_key_gen_save_load(recrypt, asymm_key_gen_dir, "init")?;
+
+    // Use the target_pub_key in subsequent operations
+    let encrypted_value =
+        generate_encrypted_val(recrypt, input, &initial_pub_key, &signing_keypair)?;
+
+    let target_pub_key = get_target_party_public_key(target_certs_dir, "target")?;
+
+    // Generate a transform key
+    let initial_to_target_transform_key = generate_transform_key(
+        recrypt,
+        &initial_priv_key,
+        &target_pub_key,
+        &signing_keypair,
+    )?;
+    info!("Transform key generated from initial to target key.");
+
+    // Transform the encrypted value
+    let transformed_val = transform_encrypted_value(
+        recrypt,
+        encrypted_value,
+        initial_to_target_transform_key,
+        &signing_keypair,
+    )?;
+    info!("Encrypted value transformed.");
+
+    Ok((transformed_val))
+}
+ 
+pub fn decrypt_pre_data(
+    recrypt: &mut Recrypt<Sha256, Ed25519, RandomBytes<DefaultRng>>,
+    transformed_val: EncryptedValue,
+    target_certs_dir: &str,
+) -> Result< Plaintext, Box<dyn std::error::Error>> {
+    // Target Party Operation for PRE
+    let (target_priv_key, target_pub_key) =
+        keygen_helper::asymm_key_gen_save_load(recrypt, target_certs_dir, "target")?;
+
+    let decrypted_val = decrypt_all_chunks_as_one(recrypt, transformed_val, &target_priv_key)?;
+    info!("Transformed value decrypted.");
+
+  //  verify_decryption(&decrypted_val, input)?;
+   // info!("Decryption verified successfully.");
+
+    Ok(decrypted_val)
+}
+
+pub fn verification(decrypted_val: &Plaintext, input: &str) -> Result<(), Box<dyn std::error::Error>> {
+    // Verify the decrypted value
+    verify_decryption(decrypted_val, input)?;
+    info!("Decryption verified successfully.");
+
+    Ok(())
 }
